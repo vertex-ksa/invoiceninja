@@ -23,6 +23,7 @@ final class CollectionPreview
         }
         $seen = [];
         $totals = [];
+        $openTotals = [];
         $rows = [];
         foreach ($invoices as $invoice) {
             foreach (['id', 'company_id', 'currency', 'balance_minor', 'due_date', 'version', 'reminders_enabled', 'disputed', 'canceled', 'consent_revoked', 'promise_until'] as $field) {
@@ -52,6 +53,9 @@ final class CollectionPreview
                 throw new InvalidArgumentException('Control total overflow.');
             }
             $totals[$currency] = $total + $balance;
+            if (!$invoice['canceled']) {
+                $openTotals[$currency] = ($openTotals[$currency] ?? 0) + $balance;
+            }
             $due = $invoice['due_date'] === null ? null : $this->date($invoice['due_date']);
             $overdue = $due === null ? null : (int) $due->diff($asOf)->format('%r%a');
             $promise = $invoice['promise_until'] === null ? null : $this->date($invoice['promise_until']);
@@ -78,11 +82,13 @@ final class CollectionPreview
         }
         usort($rows, fn (array $a, array $b): int => ($b['overdue_days'] ?? -1) <=> ($a['overdue_days'] ?? -1) ?: strcmp($a['invoice_id'], $b['invoice_id']));
         ksort($totals);
+        ksort($openTotals);
         return [
             'as_of_date' => $asOfDate,
             'source' => 'authorized_native_balance_snapshot',
             'preview_only' => true,
-            'totals_minor_by_currency' => array_map(fn (int $amount): string => (string) $amount, $totals),
+            'input_control_totals_minor_by_currency' => array_map(fn (int $amount): string => (string) $amount, $totals),
+            'open_receivables_minor_by_currency' => array_map(fn (int $amount): string => (string) $amount, $openTotals),
             'rows' => $rows,
         ];
     }
@@ -111,4 +117,5 @@ final class CollectionPreview
         return $date;
     }
 }
+
 
