@@ -176,12 +176,12 @@ class ReceivablesPreviewTest extends TestCase
         $headers = ['X-API-TOKEN' => $this->token, 'X-Requested-With' => 'XMLHttpRequest'];
         $this->company->is_disabled = true;
         $this->company->save();
-        $this->postJson('/api/v1/reports/receivables_preview', $input, $headers)->assertForbidden();
+        $this->postJson('/api/v1/reports/receivables_preview', $input, $headers)->assertUnauthorized()->assertJsonMissingPath('rows');
         $this->company->is_disabled = false;
         $this->company->save();
         $this->cu->is_locked = true;
         $this->cu->save();
-        $this->postJson('/api/v1/reports/receivables_preview', $input, $headers)->assertForbidden();
+        $this->postJson('/api/v1/reports/receivables_preview', $input, $headers)->assertForbidden()->assertJsonMissingPath('rows');
     }
 
     public function testNativePaymentBalanceChangeIsReadOnNextPreview(): void
