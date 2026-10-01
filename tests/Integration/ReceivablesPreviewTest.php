@@ -179,8 +179,9 @@ class ReceivablesPreviewTest extends TestCase
         $this->postJson('/api/v1/reports/receivables_preview', $input, $headers)->assertUnauthorized()->assertJsonMissingPath('rows');
         $this->company->is_disabled = false;
         $this->company->save();
-        $this->cu->is_locked = true;
-        $this->cu->save();
+        // Native CompanyUser is a Pivot; the factory instance lacks loaded pivot keys.
+        \DB::table('company_user')->where('company_id', $this->company->id)
+            ->where('user_id', $this->user->id)->update(['is_locked' => true]);
         $this->postJson('/api/v1/reports/receivables_preview', $input, $headers)->assertForbidden()->assertJsonMissingPath('rows');
     }
 
