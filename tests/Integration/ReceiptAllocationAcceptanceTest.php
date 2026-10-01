@@ -29,7 +29,7 @@ final class ReceiptAllocationAcceptanceTest extends TestCase
         $this->target=InvoiceFactory::create($this->company->id,$owner->id);$this->target->client_id=$this->client->id;$this->target->amount='4.000000';$this->target->balance='4.000000';$this->target->paid_to_date='0.000000';$this->target->partial='0.000000';$this->target->status_id=Invoice::STATUS_SENT;$this->target->number='TM-allocation-target';$this->target->saveQuietly();
         DB::table('paymentables')->where('payment_id',$this->payment->id)->delete();DB::table('paymentables')->insert(['payment_id'=>$this->payment->id,'paymentable_id'=>$this->invoice->id,'paymentable_type'=>'invoices','amount'=>'9.5000','refunded'=>'0.0000','created_at'=>now(),'updated_at'=>now()]);
         DB::table('company_ledgers')->where('company_id',$this->company->id)->where('client_id',$this->client->id)->delete();
-        $opening=new CompanyLedger();$opening->company_id=$this->company->id;$opening->user_id=$owner->id;$opening->client_id=$this->client->id;$opening->adjustment='6.250000';$opening->balance='6.250000';$opening->activity_id=1;$opening->notes='Synthetic opening';$opening->hash='';$opening->save();
+        $opening=new CompanyLedger();$opening->company_id=$this->company->id;$opening->user_id=$owner->id;$opening->client_id=$this->client->id;$opening->adjustment='6.250000';$opening->balance='6.250000';$opening->activity_id=1;$opening->notes='Synthetic opening';$opening->hash='';$this->payment->company_ledger()->save($opening);
         DB::table('webhooks')->where('company_id',$this->company->id)->delete();
         $this->payment=$this->payment->fresh();$this->client=$this->client->fresh();
     }
