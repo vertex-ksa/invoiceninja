@@ -43,6 +43,7 @@ final class NativeCollectionPreview
         $provenance = [];
         $precisions = [];
         $balance = new NativeBalance();
+        $calendar = new NativeInvoiceDate();
         foreach ($invoices as $invoice) {
             if (!Gate::forUser($user)->allows('view', $invoice)) {
                 continue;
@@ -69,7 +70,7 @@ final class NativeCollectionPreview
                 'company_id' => $companyId,
                 'currency' => $currency->code,
                 'balance_minor' => $balance->minor($invoice->getRawOriginal('balance'), $currency->precision),
-                'due_date' => $invoice->getRawOriginal('due_date'),
+                'due_date' => $calendar->calendar($invoice->getRawOriginal('due_date')),
                 'version' => (int) $invoice->updated_at,
                 'reminders_enabled' => $reminders,
                 // No elected native source for these controls: do not imply verified absence.
@@ -98,6 +99,7 @@ final class NativeCollectionPreview
         $result['generated_at'] = now()->toIso8601String();
         $result['hold_context'] = 'unverified_dispute_promise_recipient_consent';
         $result['native_reminder_schedule_evaluated'] = false;
+        $result['due_date_semantics'] = 'native_business_calendar_date_ignoring_intraday_reminder_schedule';
         $result['provenance'] = $provenance;
         $result['currency_precisions'] = $precisions;
         return $result;

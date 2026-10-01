@@ -3,6 +3,8 @@
 declare(strict_types=1);
 require __DIR__.'/../../app/Services/Receivables/NativeBalance.php';
 require __DIR__.'/../../app/Services/Receivables/CollectionPreview.php';
+require __DIR__.'/../../app/Services/Receivables/NativeInvoiceDate.php';
+use App\Services\Receivables\NativeInvoiceDate;
 use App\Services\Receivables\NativeBalance;
 use App\Services\Receivables\CollectionPreview;
 
@@ -26,6 +28,9 @@ foreach (['1.001000','-1.00','01.00','1e2',' 1.00','1.',1.23,null,'9223372036854
     refuses(fn()=>$normalizer->minor($amount,2));
 }
 foreach ([-1,7,'2',null] as $precision) { refuses(fn()=>$normalizer->minor('1.00',$precision)); }
+$calendar = new NativeInvoiceDate();
+foreach ([null,'2026-10-01','2026-10-01 23:59:59','2026-10-01 00:00:00.000001'] as $date) { check($calendar->calendar($date),$date === null ? null : '2026-10-01'); }
+foreach (['2026-02-30 00:00:00','2026-10-01 24:00:00','2026-10-01T00:00:00Z',0,''] as $date) { refuses(fn()=>$calendar->calendar($date)); }
 $invoice=['id'=>'a','company_id'=>'company-a','currency'=>'SAR','balance_minor'=>'100','due_date'=>'2026-09-01','version'=>1,'reminders_enabled'=>true,'disputed'=>false,'canceled'=>false,'consent_revoked'=>false,'promise_until'=>null,'hold_context_verified'=>false];
 $preview=new CollectionPreview();
 $result=$preview->build([$invoice],'company-a','2026-10-01',1);
