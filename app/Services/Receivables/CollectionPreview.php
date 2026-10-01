@@ -46,6 +46,9 @@ final class CollectionPreview
                     throw new InvalidArgumentException('Explicit boolean state required.');
                 }
             }
+            if (array_key_exists('hold_context_verified', $invoice) && !is_bool($invoice['hold_context_verified'])) {
+                throw new InvalidArgumentException('Explicit hold verification state required.');
+            }
             $balance = $this->minor($invoice['balance_minor']);
             $currency = $invoice['currency'];
             $total = $totals[$currency] ?? 0;
@@ -68,6 +71,7 @@ final class CollectionPreview
                 $promise !== null && $promise >= $asOf => 'promise_hold',
                 $due === null => 'due_date_required',
                 $overdue < $minimumOverdueDays => 'not_eligible',
+                ($invoice['hold_context_verified'] ?? true) === false => 'hold_context_unverified',
                 default => 'manual_review_required',
             };
             $rows[] = [
