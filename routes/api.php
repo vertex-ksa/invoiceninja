@@ -409,6 +409,7 @@ Route::group(['middleware' => ['throttle:api', 'token_auth', 'valid_json','local
     Route::post('reports/tasks', TaskReportController::class)->middleware('throttle:20,1');
     Route::post('reports/vendors', VendorReportController::class)->middleware('throttle:20,1');
     Route::post('reports/profitloss', ProfitAndLossController::class);
+    Route::post('reports/receivables_preview', \App\Http\Controllers\Reports\ReceivablesPreviewController::class)->middleware('throttle:20,1');
     Route::post('reports/ar_detail_report', ARDetailReportController::class);
     Route::post('reports/ar_summary_report', ARSummaryReportController::class);
     Route::post('reports/client_balance_report', ClientBalanceReportController::class);
