@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'remittance_preview_enabled' => env('TM_REMITTANCE_PREVIEW_ENABLED', false),
     // Local synthetic read-only preview; controller also requires local/testing environment.
     'receivables_preview_enabled' => env('RECEIVABLES_PREVIEW_ENABLED', false),
 
