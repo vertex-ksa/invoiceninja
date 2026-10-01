@@ -99,6 +99,48 @@ class ReceivablesPreviewTest extends TestCase
         $this->assertSame('native_updated_at_timestamp_not_monotonic_revision', $future['source_version_semantics']);
     }
 
+    public function testRoleRevocationDeniesAnotherPreview(): void
+    {
+        $membership = auth()->user()->token()->cu;
+        $membership->is_admin = false;
+        $membership->is_owner = false;
+        $membership->permissions = '';
+        $membership->save();
+        $this->expectException(HttpException::class);
+        $this->preview();
+    }
+
+    public function testCapacityRejectsWithoutReturningPartialTotals(): void
+    {
+        $row = $this->invoice->fresh()->getRawOriginal();
+        unset($row['id']);
+        $rows = [];
+        for ($i = 0; $i < NativeCollectionPreview::MAX_CANDIDATES; ++$i) {
+            $row['number'] = 'tm-b-cap-'.$i;
+            $rows[] = $row;
+        }
+        foreach (array_chunk($rows, 100) as $chunk) { Invoice::insert($chunk); }
+        try {
+            $this->preview();
+            $this->fail('Truncated preview unexpectedly returned.');
+        } catch (HttpException $exception) {
+            $this->assertSame(413, $exception->getStatusCode());
+        }
+    }
+
+    public function testAuthenticatedApiPreservesNoDispatchAndRejectsCallerScope(): void
+    {
+        $headers = ['X-API-TOKEN' => $this->token, 'X-Requested-With' => 'XMLHttpRequest'];
+        $input = ['as_of_date' => '2026-10-01', 'minimum_overdue_days' => 1];
+        $this->postJson('/api/v1/reports/receivables_preview', $input, $headers)
+            ->assertOk()->assertJsonPath('preview_only', true)
+            ->assertJsonPath('balance_basis', 'current_native_balance_at_read_time');
+        $this->postJson('/api/v1/reports/receivables_preview', $input + ['company_id' => $this->company->id], $headers)
+            ->assertUnprocessable();
+        $this->postJson('/api/v1/reports/receivables_preview', $input + ['send_email' => true], $headers)
+            ->assertUnprocessable();
+    }
+
     public function testNativePaymentBalanceChangeIsReadOnNextPreview(): void
     {
         $this->invoice->balance = '0.000000';
