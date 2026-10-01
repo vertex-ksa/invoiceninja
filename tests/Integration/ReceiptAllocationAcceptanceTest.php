@@ -16,7 +16,7 @@ final class ReceiptAllocationAcceptanceTest extends TestCase
     use MockAccountData,DatabaseTransactions;
     private Invoice $target;
     protected function setUp(): void {
-        parent::setUp();Bus::fake();Mail::fake();$this->makeTestData();
+        parent::setUp();Bus::fake()->except([\App\Jobs\Company\CreateCompanyTaskStatuses::class]);Mail::fake();$this->makeTestData();Bus::fake();
         config(['ninja.receipt_allocation_enabled'=>true,'ninja.receipt_allocation_mode'=>'STANDALONE','ninja.db.multi_db_enabled'=>false]);
         request()->headers->set('X-API-TOKEN',$this->token);
         $settings=$this->company->settings;$settings->currency_id='1';$settings->france_reporting_enabled=false;$this->company->settings=$settings;$this->company->quickbooks=null;$this->company->saveQuietly();
