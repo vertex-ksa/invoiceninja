@@ -76,6 +76,22 @@ class LedgerService
         return $this;
     }
 
+    /** Native operational ledger effect, reconciled exactly in the allocation's DB transaction. */
+    public function updatePaymentBalanceExactPartial(string $adjustment, string $expectedBalance): self
+    {
+        $money = new \App\Services\Receivables\ExactAllocationAmounts();
+        if ($money->signed($adjustment) >= 0) throw new \InvalidArgumentException('Allocation ledger adjustment must be negative.');
+        $row = CompanyLedgerFactory::create($this->entity->company_id, $this->entity->user_id);
+        $row->client_id = $this->entity->client_id;
+        $row->adjustment = $adjustment;
+        $row->activity_id = Activity::UPDATE_PAYMENT;
+        $row->notes = 'ExactPartialReceiptAllocation';
+        $this->entity->company_ledger()->save($row);
+        (new ClientLedgerBalanceUpdate($this->entity->company, $this->entity->client))
+            ->handleExactAllocation($row, $expectedBalance);
+        return $this;
+    }
+
     public function updateCreditBalance($adjustment, $notes = '')
     {
         $company_ledger = CompanyLedgerFactory::create($this->entity->company_id, $this->entity->user_id);

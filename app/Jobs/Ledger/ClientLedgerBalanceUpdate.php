@@ -75,4 +75,28 @@ class ClientLedgerBalanceUpdate implements ShouldQueue
     {
         return [(new WithoutOverlapping($this->client->client_hash))->dontRelease()];
     }
+
+    /** No queue/float math: reconcile only this transaction's newly created operational row. */
+    public function handleExactAllocation(CompanyLedger $row, string $expectedBalance): void
+    {
+        if ((string) $row->company_id !== (string) $this->company->id
+            || (string) $row->client_id !== (string) $this->client->id || $row->getRawOriginal('balance') !== null) {
+            throw new \InvalidArgumentException('Native ledger allocation scope changed.');
+        }
+        $pending = CompanyLedger::query()->where('company_id', $this->company->id)
+            ->where('client_id', $this->client->id)->whereNull('balance')->lockForUpdate()->get();
+        if ($pending->count() !== 1 || $pending->first()->id !== $row->id) {
+            throw new \InvalidArgumentException('Earlier native ledger reconciliation is pending.');
+        }
+        $parent = CompanyLedger::query()->where('company_id', $this->company->id)
+            ->where('client_id', $this->client->id)->where('id', '<', $row->id)
+            ->orderByDesc('id')->lockForUpdate()->first();
+        $money = new \App\Services\Receivables\ExactAllocationAmounts();
+        $minor = $money->signed($parent?->getRawOriginal('balance') ?? '0.000000')
+            + $money->signed($row->getRawOriginal('adjustment'));
+        $actual = $money->decimal($minor);
+        if ($actual !== $expectedBalance) throw new \InvalidArgumentException('Native ledger beforeimage changed.');
+        $row->balance = $actual;
+        $row->save();
+    }
 }

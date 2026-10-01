@@ -109,6 +109,18 @@ class ClientService
         return $this;
     }
 
+    /** Called only after the guarded command locks this client and validates its exact beforeimage. */
+    public function reduceBalanceExactPartial(string $newBalance): self
+    {
+        $money = new \App\Services\Receivables\ExactAllocationAmounts();
+        if ($money->unsigned($newBalance) >= $money->unsigned($this->client->getRawOriginal('balance'))) {
+            throw new \InvalidArgumentException('Native exact partial client balance must decrease.');
+        }
+        $this->client->balance = $newBalance;
+        $this->client->saveQuietly();
+        return $this;
+    }
+
     public function updateBalanceAndPaidToDate($balance, $paid_to_date)
     {
 

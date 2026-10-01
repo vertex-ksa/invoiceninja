@@ -115,6 +115,13 @@ class InvoiceService
         return $this;
     }
 
+    /** Additive exact partial entry point; the established float API is unchanged. */
+    public function applyPaymentExactPartial(Payment $payment, array $plan): self
+    {
+        $this->invoice = ApplyPayment::exactPartial($this->invoice, $payment, $plan);
+        return $this;
+    }
+
     /**
      * Quotes the gateway fee for a payment attempt.
      *

@@ -411,6 +411,8 @@ Route::group(['middleware' => ['throttle:api', 'token_auth', 'valid_json','local
     Route::post('reports/profitloss', ProfitAndLossController::class);
     Route::post('reports/receivables_preview', \App\Http\Controllers\Reports\ReceivablesPreviewController::class)->middleware('throttle:20,1');
     Route::post('reports/remittance_allocation_preview', \App\Http\Controllers\Reports\RemittancePreviewController::class)->middleware('throttle:20,1');
+    Route::post('reports/receipt_allocation_intent', [\App\Http\Controllers\Reports\ReceiptAllocationController::class, 'intent'])->middleware('throttle:20,1');
+    Route::post('commands/receipt_allocation_acceptance', [\App\Http\Controllers\Reports\ReceiptAllocationController::class, 'accept'])->middleware('throttle:20,1');
     Route::post('reports/ar_detail_report', ARDetailReportController::class);
     Route::post('reports/ar_summary_report', ARSummaryReportController::class);
     Route::post('reports/client_balance_report', ClientBalanceReportController::class);

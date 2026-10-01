@@ -21,6 +21,27 @@ class ApplyPayment extends AbstractService
 {
     public function __construct(private Invoice $invoice, private Payment $payment, private float $payment_amount) {}
 
+    /** Explicit exact branch for the separately guarded ordinary, non-deposit partial operation. */
+    public static function exactPartial(Invoice $invoice, Payment $payment, array $plan): Invoice
+    {
+        if (!in_array((int) $invoice->status_id, [Invoice::STATUS_SENT, Invoice::STATUS_PARTIAL], true)
+            || $invoice->hasPartial() || $invoice->is_proforma) {
+            throw new \InvalidArgumentException('Only an ordinary active partial allocation is supported.');
+        }
+        $invoice->status_id = Invoice::STATUS_PARTIAL;
+        $invoice->balance = $plan['invoice_balance'];
+        $invoice->paid_to_date = $plan['invoice_paid_to_date'];
+        // Preserve the existing updateBalance rule without a decimal-to-float cast.
+        if ((new \App\Services\Receivables\ExactAllocationAmounts())->unsigned($plan['invoice_balance']) < 100) {
+            $invoice->next_send_date = null;
+        }
+        // Same existing native persistence semantics; paid/partial-deposit workflows are excluded.
+        $invoice->service()->save();
+        $invoice->client->service()->reduceBalanceExactPartial($plan['client_balance']);
+        $payment->ledger()->updatePaymentBalanceExactPartial($plan['ledger_adjustment'], $plan['ledger_balance']);
+        return $invoice->fresh();
+    }
+
     /**
      * Apply a payment to a single invoice.
      *

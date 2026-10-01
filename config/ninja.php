@@ -2,6 +2,8 @@
 
 return [
     'remittance_preview_enabled' => env('TM_REMITTANCE_PREVIEW_ENABLED', false),
+    'receipt_allocation_enabled' => env('TM_RECEIPT_ALLOCATION_ENABLED', false),
+    'receipt_allocation_mode' => env('TM_RECEIPT_ALLOCATION_MODE', 'DISABLED'),
     // Local synthetic read-only preview; controller also requires local/testing environment.
     'receivables_preview_enabled' => env('RECEIVABLES_PREVIEW_ENABLED', false),
 
