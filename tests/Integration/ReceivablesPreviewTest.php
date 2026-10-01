@@ -47,6 +47,8 @@ class ReceivablesPreviewTest extends TestCase
         $this->assertSame('hold_context_unverified', $rows[$this->invoice->hashed_id]['state']);
         $this->assertFalse($rows[$this->invoice->hashed_id]['dispatch_allowed']);
         $this->assertFalse($result['is_point_in_time_snapshot']);
+        $this->assertSame((string) $this->invoice->number, $result['provenance'][$this->invoice->hashed_id]['invoice_number']);
+        $this->assertArrayNotHasKey('client_name', $result['provenance'][$this->invoice->hashed_id]);
         $this->assertSame($before, $this->invoice->fresh()->getRawOriginal());
         Bus::assertNothingDispatched();
         Mail::assertNothingSent();

@@ -84,7 +84,9 @@ final class NativeCollectionPreview
             $provenance[$id] = [
                 'currency_precision' => $currency->precision,
                 'native_status_id' => $invoice->status_id,
-                'source_token' => hash('sha256', json_encode([$row, $invoice->getRawOriginal('updated_at')], JSON_THROW_ON_ERROR)),
+                // Invoice identity is covered by the per-invoice Gate above; no client/contact PII.
+                'invoice_number' => (string) $invoice->number,
+                'source_token' => hash('sha256', json_encode([$row, (string) $invoice->number, $invoice->getRawOriginal('updated_at')], JSON_THROW_ON_ERROR)),
             ];
         }
         $result = (new CollectionPreview())->build($rows, $companyId, $asOfDate, $minimumOverdueDays);
