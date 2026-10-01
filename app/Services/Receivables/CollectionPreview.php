@@ -117,5 +117,3 @@ final class CollectionPreview
         return $date;
     }
 }
-
-

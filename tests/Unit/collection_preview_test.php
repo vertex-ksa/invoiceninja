@@ -47,5 +47,3 @@ $canceledPreview=$preview->build([invoice('canceled','100','2026-09-01',['cancel
 equal($canceledPreview['open_receivables_minor_by_currency'],[]);
 equal($canceledPreview['input_control_totals_minor_by_currency'],['SAR'=>'100']);
 echo "PASS $checks deterministic finance fixture checks; no dispatch or persistence.\n";
-
-
