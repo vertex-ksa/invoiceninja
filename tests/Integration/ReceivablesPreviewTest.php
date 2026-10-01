@@ -4,6 +4,7 @@ namespace Tests\Integration;
 
 use App\Models\Invoice;
 use App\Models\Company;
+use App\Models\User;
 use App\Services\Receivables\NativeCollectionPreview;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
@@ -139,6 +140,48 @@ class ReceivablesPreviewTest extends TestCase
             ->assertUnprocessable();
         $this->postJson('/api/v1/reports/receivables_preview', $input + ['send_email' => true], $headers)
             ->assertUnprocessable();
+    }
+
+    public function testNativeReportOnlyRoleCannotSeeAnotherOwnersInvoice(): void
+    {
+        $membership = auth()->user()->token()->cu;
+        $membership->is_admin = false;
+        $membership->is_owner = false;
+        $membership->permissions = 'view_reports';
+        $membership->save();
+        $before = $this->preview();
+        $otherOwner = User::factory()->create(['account_id' => $this->account->id]);
+        $other = $this->invoice->replicate();
+        $other->number = 'tm-b-other-owner';
+        $other->user_id = $otherOwner->id;
+        $other->assigned_user_id = null;
+        $other->save();
+        $after = $this->preview();
+        $this->assertContains($this->invoice->hashed_id, array_column($after['rows'], 'invoice_id'));
+        $this->assertNotContains($other->hashed_id, array_column($after['rows'], 'invoice_id'));
+        $this->assertSame($before['open_receivables_minor_by_currency'], $after['open_receivables_minor_by_currency']);
+    }
+
+    public function testMissingOrInvalidTokenCannotReadPreview(): void
+    {
+        $input = ['as_of_date' => '2026-10-01', 'minimum_overdue_days' => 1];
+        $this->postJson('/api/v1/reports/receivables_preview', $input)->assertForbidden();
+        $this->postJson('/api/v1/reports/receivables_preview', $input, ['X-API-TOKEN' => 'invalid-synthetic-token'])
+            ->assertForbidden();
+    }
+
+    public function testDisabledCompanyAndLockedMembershipCannotReadApi(): void
+    {
+        $input = ['as_of_date' => '2026-10-01', 'minimum_overdue_days' => 1];
+        $headers = ['X-API-TOKEN' => $this->token, 'X-Requested-With' => 'XMLHttpRequest'];
+        $this->company->is_disabled = true;
+        $this->company->save();
+        $this->postJson('/api/v1/reports/receivables_preview', $input, $headers)->assertForbidden();
+        $this->company->is_disabled = false;
+        $this->company->save();
+        $this->cu->is_locked = true;
+        $this->cu->save();
+        $this->postJson('/api/v1/reports/receivables_preview', $input, $headers)->assertForbidden();
     }
 
     public function testNativePaymentBalanceChangeIsReadOnNextPreview(): void
