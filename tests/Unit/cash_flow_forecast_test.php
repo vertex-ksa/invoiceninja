@@ -1,0 +1,27 @@
+<?php
+require __DIR__.'/../../app/Services/Receivables/CashFlowForecast.php';
+use App\Services\Receivables\CashFlowForecast;
+$engine=new CashFlowForecast();$tests=0;
+$assert=function($condition)use(&$tests){$tests++;if(!$condition)throw new RuntimeException('Forecast assertion failed '.$tests);};
+$reject=function($facts,$input)use($engine,$assert){try{$engine->build($facts,$input);throw new RuntimeException('Unsafe forecast accepted');}catch(InvalidArgumentException $e){$assert(true);}};
+$facts=[['invoice_id'=>'invoice1','currency'=>'USD','precision'=>2,'balance_minor'=>'101','due_date'=>'2026-10-01','source_token'=>str_repeat('a',64)]];
+$scenario=['version'=>'base_v1','collection_basis_points'=>5000,'delay_days'=>1,'opening_minor_by_currency'=>['USD'=>'-10'],'planned_outflows'=>[['date'=>'2026-10-03','currency'=>'USD','amount_minor'=>'15']]];
+$input=['start_date'=>'2026-10-02','end_date'=>'2026-10-04','scenarios'=>[$scenario]];
+$result=$engine->build($facts,$input);$rows=$result['scenarios'][0]['series'];
+$assert($rows[0]['closing_minor']==='-10');$assert($rows[1]['inflow_minor']==='51');$assert($rows[1]['closing_minor']==='26');$assert($rows[2]['closing_minor']==='26');
+$assert($result['scenarios'][0]['totals_by_currency']['USD']['minimum_balance_minor']==='-10');$assert($result['write_authority']==='NONE');
+$large=$facts;$large[0]['balance_minor']=(string)PHP_INT_MAX;$all=$input;$all['scenarios'][0]['collection_basis_points']=10000;$all['scenarios'][0]['opening_minor_by_currency']=['USD'=>'0'];$all['scenarios'][0]['planned_outflows']=[];
+$assert($engine->build($large,$all)['scenarios'][0]['totals_by_currency']['USD']['inflow_minor']===(string)PHP_INT_MAX);
+$missing=$facts;$missing[0]['due_date']=null;$assert($engine->build($missing,$input)['scenarios'][0]['excluded'][0]['reason']==='due_date_required');
+$outside=$facts;$outside[0]['due_date']='2027-01-01';$assert($engine->build($outside,$input)['scenarios'][0]['excluded'][0]['reason']==='outside_horizon');
+$bad=$input;$bad['scenarios'][0]['collection_basis_points']=5000.5;$reject($facts,$bad);
+$bad=$input;$bad['scenarios'][0]['opening_minor_by_currency']['USD']='01';$reject($facts,$bad);
+$bad=$input;$bad['scenarios'][0]['planned_outflows'][0]['currency']='SAR';$reject($facts,$bad);
+$bad=$input;$bad['scenarios'][]=$scenario;$reject($facts,$bad);
+$bad=$input;$bad['end_date']='2028-01-01';$reject($facts,$bad);
+$bad=$input;$bad['start_date']='2026-02-30';$reject($facts,$bad);
+$duplicate=$facts;$duplicate[]=$facts[0];$reject($duplicate,$input);
+$conflict=$facts;$conflict[]=[...$facts[0],'invoice_id'=>'invoice2','precision'=>3];$reject($conflict,$input);
+$overflow=$all;$overflow['scenarios'][0]['opening_minor_by_currency']=['USD'=>'1'];$reject($large,$overflow);
+$assert($engine->build([],[...$input,'scenarios'=>[[...$scenario,'opening_minor_by_currency'=>[],'planned_outflows'=>[]]]])['native_invoice_count']===0);
+echo 'CASH_FLOW_FORECAST_PURE_PASS '.$tests.' assertions'.PHP_EOL;

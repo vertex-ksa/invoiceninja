@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'cash_flow_forecast_enabled' => env('TM_CASH_FLOW_FORECAST_ENABLED', false),
     'remittance_preview_enabled' => env('TM_REMITTANCE_PREVIEW_ENABLED', false),
     'receipt_allocation_enabled' => env('TM_RECEIPT_ALLOCATION_ENABLED', false),
     'receipt_allocation_mode' => env('TM_RECEIPT_ALLOCATION_MODE', 'DISABLED'),

@@ -409,6 +409,7 @@ Route::group(['middleware' => ['throttle:api', 'token_auth', 'valid_json','local
     Route::post('reports/tasks', TaskReportController::class)->middleware('throttle:20,1');
     Route::post('reports/vendors', VendorReportController::class)->middleware('throttle:20,1');
     Route::post('reports/profitloss', ProfitAndLossController::class);
+    Route::post('reports/cash_flow_forecast', \App\Http\Controllers\Reports\CashFlowForecastController::class)->middleware('throttle:20,1');
     Route::post('reports/receivables_preview', \App\Http\Controllers\Reports\ReceivablesPreviewController::class)->middleware('throttle:20,1');
     Route::post('reports/remittance_allocation_preview', \App\Http\Controllers\Reports\RemittancePreviewController::class)->middleware('throttle:20,1');
     Route::post('reports/receipt_allocation_intent', [\App\Http\Controllers\Reports\ReceiptAllocationController::class, 'intent'])->middleware('throttle:20,1');
