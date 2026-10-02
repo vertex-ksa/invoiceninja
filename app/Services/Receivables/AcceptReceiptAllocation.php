@@ -53,7 +53,9 @@ final class AcceptReceiptAllocation
                     'native_actor_id'=>$user->hashed_id,'native_audit'=>'TRANSACTION_CONTAINED','payment_balance'=>'TRANSACTION_CONTAINED'],JSON_THROW_ON_ERROR),
                 'created_at'=>now()->timestamp,'updated_at'=>now()->timestamp,
             ]);
-            $pivot = new Paymentable(); $pivot->payment_id=$payment->id; $pivot->paymentable_id=$invoice->id;
+            // Paymentable inherits Pivot's non-incrementing default. This insert needs
+            // its native auto-incremented identity in the durable operation receipt.
+            $pivot = new Paymentable(); $pivot->setIncrementing(true); $pivot->payment_id=$payment->id; $pivot->paymentable_id=$invoice->id;
             $pivot->paymentable_type='invoices'; $pivot->amount=$plan['paymentable_amount']; $pivot->refunded='0.0000';
             $pivot->created_at=now('UTC')->timestamp; $pivot->save();
             $invoice->setRelation('client',$client); $payment->setRelation('client',$client); $payment->setRelation('company',$company);

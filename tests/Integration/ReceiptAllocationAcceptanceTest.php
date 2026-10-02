@@ -48,6 +48,19 @@ final class ReceiptAllocationAcceptanceTest extends TestCase
         $this->assertSame($beforeActivity+1,DB::table('activities')->count());$this->assertSame($this->user->id,DB::table('activities')->orderByDesc('id')->value('user_id'));
         $this->assertSame(1,DB::table('receipt_allocation_operations')->count());Bus::assertNothingDispatched();Mail::assertNothingSent();Mail::assertNothingQueued();
     }
+    public function testAcceptanceReceiptRetainsTheNativeAutoIncrementedPaymentableIdentity(): void {
+        $command=$this->command();$service=new AcceptReceiptAllocation();$receipt=$service->accept($this->user,$command);
+        $this->assertMatchesRegularExpression('/^[1-9][0-9]*$/',$receipt['allocation_id']);
+        $pivot=DB::table('paymentables')->where('id',$receipt['allocation_id'])->first();
+        $this->assertNotNull($pivot);$this->assertSame($this->payment->id,(int)$pivot->payment_id);
+        $this->assertSame($this->target->id,(int)$pivot->paymentable_id);$this->assertSame('invoices',$pivot->paymentable_type);
+        $this->assertSame('0.5000',$pivot->amount);
+        $stored=json_decode(DB::table('receipt_allocation_operations')->where('id',$receipt['operation_id'])->value('result_json'),true,512,JSON_THROW_ON_ERROR);
+        $this->assertSame($receipt,$stored);$rows=$this->rows();
+        $this->assertSame($receipt,$service->reconcile($this->user,$command)['receipt']);
+        $this->assertSame($receipt['allocation_id'],$service->accept($this->user,$command)['allocation_id']);
+        $this->assertSame($rows,$this->rows());Bus::assertNothingDispatched();Mail::assertNothingSent();
+    }
     public function testIdenticalReplayUsesStoredResultAndDifferentPayloadConflicts(): void {$command=$this->command();$service=new AcceptReceiptAllocation();$first=$service->accept($this->user,$command);$rows=$this->rows();$again=$service->accept($this->user,$command);$this->assertTrue($again['replayed']);$this->assertSame($first['allocation_id'],$again['allocation_id']);$this->assertSame($rows,$this->rows());$other=$command;$other['amount_minor']='49';$this->denied(fn()=>$service->accept($this->user,$other),409);$this->assertSame($rows,$this->rows());}
     public function testLockedFinancialBeforeimageRejectsChangedInvoiceWithoutAnyNewEffects(): void {$command=$this->command();DB::table('invoices')->where('id',$this->target->id)->update(['balance'=>'3.990000']);$rows=$this->rows();$this->denied(fn()=>(new AcceptReceiptAllocation())->accept($this->user,$command),409);$this->assertSame($rows,$this->rows());}
     public function testCurrentNativePermissionRevocationAlsoDeniesCommittedReplay(): void {$command=$this->command();$service=new AcceptReceiptAllocation();$service->accept($this->user,$command);DB::table('company_user')->where('company_id',$this->company->id)->where('user_id',$this->user->id)->update(['permissions'=>'view_reports,view_payment,view_invoice,view_client,edit_payment,edit_client']);$rows=$this->rows();$this->denied(fn()=>$service->accept($this->user,$command),403);$this->assertSame($rows,$this->rows());}
