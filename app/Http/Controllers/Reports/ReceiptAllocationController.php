@@ -16,4 +16,9 @@ class ReceiptAllocationController extends BaseController
         catch(InvalidArgumentException){return response()->json(['message'=>'Current native facts are outside this bounded allocation operation.'],422)->header('Cache-Control','no-store');}
         return response()->json($result)->header('Cache-Control','no-store');
     }
+    public function reconcile(ReceiptAllocationAcceptanceRequest $request,AcceptReceiptAllocation $service){
+        try{$result=$service->reconcile(auth()->user(),$request->validated());}
+        catch(InvalidArgumentException){return response()->json(['message'=>'Current native facts are outside this bounded allocation read.'],422)->header('Cache-Control','no-store');}
+        return response()->json($result)->header('Cache-Control','no-store');
+    }
 }

@@ -55,4 +55,22 @@ final class ReceiptAllocationAcceptanceTest extends TestCase
     public function testNullPreviousAuthIsRestoredAndReplayFactsRemainExplicitlyHistorical(): void {$command=$this->command();auth()->logout();$service=new AcceptReceiptAllocation();$first=$service->accept($this->user,$command);$this->assertNull(auth()->user());DB::table('invoices')->where('id',$this->target->id)->update(['balance'=>'3.490000']);$rows=$this->rows();$again=$service->accept($this->user,$command);$this->assertTrue($again['replayed']);$this->assertSame($first['financial_result'],$again['financial_result']);$this->assertSame('historical_committed_operation_facts_not_current_snapshot',$again['result_semantics']);$this->assertSame($rows,$this->rows());$this->assertNull(auth()->user());}
     public function testActorChangeBeforeDispatchDeniesBeforeAnyOperationOrBalanceEffect(): void {$command=$this->command();$command['expected_native_actor_id']='anotherActor';$rows=$this->rows();$this->denied(fn()=>(new AcceptReceiptAllocation())->accept($this->user,$command),403);$this->assertSame($rows,$this->rows());}
     public function testNativeAuditFailureRollsBackPivotBalancesLedgerAndOperationReceipt(): void {$command=$this->command();$rows=$this->rows();$repo=$this->createMock(ActivityRepository::class);$repo->method('save')->willThrowException(new \RuntimeException('synthetic audit failure'));app()->instance(ActivityRepository::class,$repo);try{(new AcceptReceiptAllocation())->accept($this->user,$command);$this->fail('Audit failure was swallowed');}catch(\RuntimeException $e){$this->assertSame('synthetic audit failure',$e->getMessage());}finally{app()->forgetInstance(ActivityRepository::class);}$this->assertSame($rows,$this->rows());}
+    public function testMissingReceiptReadCannotApplyMoneyOrAuthorizeRetry(): void {
+        $command=$this->command();$rows=$this->rows();$result=(new AcceptReceiptAllocation())->reconcile($this->user,$command);
+        $this->assertSame('NOT_FOUND',$result['state']);$this->assertNull($result['receipt']);$this->assertTrue($result['read_only']);
+        $this->assertSame('NONE',$result['write_authority']);$this->assertFalse($result['automatic_replay_allowed']);
+        $this->assertSame('absence_of_committed_receipt_not_permission_to_retry',$result['not_found_semantics']);
+        $this->assertSame($rows,$this->rows());Bus::assertNothingDispatched();Mail::assertNothingSent();Mail::assertNothingQueued();
+    }
+    public function testCommittedReadbackReturnsHistoricalReceiptWithoutReplayingOrUpdatingRows(): void {
+        $command=$this->command();$service=new AcceptReceiptAllocation();$receipt=$service->accept($this->user,$command);$rows=$this->rows();
+        foreach([1,2] as $read){$result=$service->reconcile($this->user,$command);$this->assertSame('COMMITTED',$result['state']);$this->assertSame($receipt,$result['receipt']);$this->assertSame($rows,$this->rows());}
+        Bus::assertNothingDispatched();Mail::assertNothingSent();Mail::assertNothingQueued();
+    }
+    public function testReconciliationRechecksCurrentNativePermissionAndConflictingPayload(): void {
+        $command=$this->command();$service=new AcceptReceiptAllocation();$service->accept($this->user,$command);
+        $changed=$command;$changed['amount_minor']='49';$rows=$this->rows();$this->denied(fn()=>$service->reconcile($this->user,$changed),409);$this->assertSame($rows,$this->rows());
+        DB::table('company_user')->where('company_id',$this->company->id)->where('user_id',$this->user->id)->update(['permissions'=>'view_reports,view_payment,view_invoice,view_client,edit_payment,edit_client']);
+        $rows=$this->rows();$this->denied(fn()=>$service->reconcile($this->user,$command),403);$this->assertSame($rows,$this->rows());
+    }
 }

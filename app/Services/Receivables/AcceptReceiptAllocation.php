@@ -81,6 +81,28 @@ final class AcceptReceiptAllocation
         });
     }
 
+    /** Authoritative readback only: never invokes accept, creates an operation, or applies money. */
+    public function reconcile(User $actor, array $input): array
+    {
+        $input = (new ReceiptAllocationInput())->validate($input, true);
+        return $this->transaction($actor,$input,function ($user,$company,$payment,$client,$invoice,$pivots,$ledger) use ($input) {
+            $existing = DB::table('receipt_allocation_operations')->where('company_id',$company->id)
+                ->where('native_user_id',$user->id)->where('operation_key',$input['operation_key'])->lockForUpdate()->first();
+            $receipt = null;
+            if ($existing) {
+                abort_unless(hash_equals($existing->payload_sha256,(new ReceiptAllocationInput())->payloadHash($input)),409,'Allocation operation key conflicts.');
+                if ($existing->result_json === null) throw new \RuntimeException('Incomplete native operation receipt.');
+                $receipt = json_decode($existing->result_json,true,512,JSON_THROW_ON_ERROR);
+            }
+            return ['read_only'=>true,'write_authority'=>'NONE','state'=>$existing?'COMMITTED':'NOT_FOUND',
+                'operation_key'=>$input['operation_key'],'company_id'=>(string)$company->id,'native_actor_id'=>$user->hashed_id,
+                'client_id'=>$client->hashed_id,'payment_id'=>$payment->hashed_id,'invoice_id'=>$invoice->hashed_id,
+                'amount_minor'=>$input['amount_minor'],'expected_financial_beforeimage'=>$input['expected_financial_beforeimage'],
+                'receipt'=>$receipt,'automatic_replay_allowed'=>false,
+                'not_found_semantics'=>'absence_of_committed_receipt_not_permission_to_retry'];
+        });
+    }
+
     private function transaction(User $actor,array $input,callable $action): array
     {
         abort_unless(PHP_INT_SIZE === 8,503);

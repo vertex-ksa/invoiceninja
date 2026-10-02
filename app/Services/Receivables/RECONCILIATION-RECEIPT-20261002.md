@@ -1,0 +1,9 @@
+# Native allocation readback checkpoint — 2026-10-02
+
+Base: `8908b1142f15645e60877839fd568b49d58afccc`; isolated synthetic local/testing MariaDB 10.11.14, PHP 8.3.6, repository-locked Composer dependencies. Existing allocation enablement and standalone guards remain required; no production activation or provider delivery.
+
+Added an authenticated read-only report for the exact stored operation key and original command. It reuses current native company/token/grant checks and financial entity authorization. A committed response returns the original durable receipt; absence explicitly grants no retry permission. Conflicting payloads return409. This endpoint neither applies an allocation nor replays an operation.
+
+Validation: genuine native database migrations and seed completed. `ReceiptAllocationAcceptanceTest.php` plus `RemittancePreviewTest.php`:19 tests,97 assertions,pass. This includes read absence without effects, twice reading a committed historical receipt without row changes, conflicting payload denial, and revoking current edit permission before readback. `ExactAllocationAmountsTest.php` plus `ReceiptAllocationProjectionTest.php`:50 tests,69 assertions,pass. PHP syntax and diff whitespace checks pass. The preview capacity case initially exhausted the task-local128MiB PHP limit; after setting the isolated runtime512MiB, its individual test passed followed by the affected suite. No source resource limit or business guard was changed.
+
+Limits: this is local native database/service and Laravel integration evidence. It does not establish PostgreSQL behavior, provider delivery, production deployment, cross-tab browser correctness, or completion of all ten Invoice capabilities. Exact downstream source pins must be advanced to the commit containing this endpoint before activation.
