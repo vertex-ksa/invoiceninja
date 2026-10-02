@@ -24,4 +24,7 @@ $duplicate=$facts;$duplicate[]=$facts[0];$reject($duplicate,$input);
 $conflict=$facts;$conflict[]=[...$facts[0],'invoice_id'=>'invoice2','precision'=>3];$reject($conflict,$input);
 $overflow=$all;$overflow['scenarios'][0]['opening_minor_by_currency']=['USD'=>'1'];$reject($large,$overflow);
 $assert($engine->build([],[...$input,'scenarios'=>[[...$scenario,'opening_minor_by_currency'=>[],'planned_outflows'=>[]]]])['native_invoice_count']===0);
+$multiple=$input;$multiple['scenarios'][]=[...$scenario,'version'=>'full_v1','collection_basis_points'=>10000];$compared=$engine->build($facts,$multiple);$assert(count($compared['scenarios'])===2);$assert($compared['scenarios'][1]['totals_by_currency']['USD']['inflow_minor']==='101');$assert($compared['scenarios'][0]['assumptions_sha256']!==$compared['scenarios'][1]['assumptions_sha256']);
+$reversed=$input;$reversed['end_date']='2026-10-01';$reject($facts,$reversed);
+$extra=$input;$extra['scenarios'][0]['native_actor_id']='other';$reject($facts,$extra);
 echo 'CASH_FLOW_FORECAST_PURE_PASS '.$tests.' assertions'.PHP_EOL;
