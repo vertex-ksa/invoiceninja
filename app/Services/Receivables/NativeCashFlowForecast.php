@@ -9,16 +9,19 @@ use InvalidArgumentException;
 
 final class NativeCashFlowForecast
 {
-    public function build(User $actor,array $input): array
+    public function build(User $actor,array $input,bool $lockSource=false): array
     {
         abort_unless(app()->environment(['local','testing']) && config('ninja.cash_flow_forecast_enabled')===true,403);
         $company=$actor->company();
         abort_unless(!$actor->is_deleted && !$company->is_disabled && (string)$actor->companyId()===(string)$company->id
             && ($actor->isAdmin()||$actor->hasPermission('view_reports')),403);
-        $invoices=Invoice::query()->where('company_id',$company->id)->where('is_deleted',false)->whereNull('deleted_at')
+        $invoiceQuery=Invoice::query()->where('company_id',$company->id)->where('is_deleted',false)->whereNull('deleted_at')
             ->whereIn('status_id',[Invoice::STATUS_SENT,Invoice::STATUS_PARTIAL])->where('balance','>',0)
             ->whereHas('client',fn($q)=>$q->where('company_id',$company->id)->where('is_deleted',false)->whereNull('deleted_at'))
-            ->with('client')->orderBy('id')->limit(1001)->get();
+            ->with(['client'=>function($query)use($lockSource){if($lockSource){$query->lockForUpdate();}}])
+            ->orderBy('id')->limit(1001);
+        if($lockSource){$invoiceQuery->lockForUpdate();}
+        $invoices=$invoiceQuery->get();
         abort_if($invoices->count()>1000,413);
         $facts=[];
         foreach($invoices as $invoice){
