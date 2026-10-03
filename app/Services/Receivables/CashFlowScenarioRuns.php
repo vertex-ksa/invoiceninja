@@ -19,7 +19,7 @@ final class CashFlowScenarioRuns
             $existing=DB::table('cash_flow_scenario_runs')->where('company_id',$company->id)->where('native_user_id',$user->id)->where('operation_key',$input['operation_key'])->lockForUpdate()->first();
             if($existing){abort_unless(hash_equals($existing->input_sha256,$hash),409);return $this->receipt($existing,$user,$company,true);}
             abort_if(DB::table('cash_flow_scenario_runs')->where('company_id',$company->id)->where('native_user_id',$user->id)->count()>=1000,413);
-            $report=(new NativeCashFlowForecast())->build($user,$input['forecast_input']);
+            $report=(new NativeCashFlowForecast())->build($user,$input['forecast_input'],true);
             abort_unless(hash_equals($input['expected_source_snapshot_sha256'],$report['source_snapshot_sha256']),409);
             $publicInput=$input['forecast_input'];foreach($publicInput['scenarios']as&$scenario){$scenario['opening_minor_by_currency']=(object)$scenario['opening_minor_by_currency'];}unset($scenario);
             // JSON objects preserve empty currency maps at the public boundary.
